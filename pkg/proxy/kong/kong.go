@@ -230,7 +230,7 @@ func (k *kong) sync(lb *lbapi.LoadBalancer, dps []*appsv1.Deployment) error {
 		deploymentName = desiredDeploy.Name
 	}
 
-	if err := k.ensureService(lb); err != nil {
+	if err := k.ensureProxySvc(lb); err != nil {
 		return err
 	}
 

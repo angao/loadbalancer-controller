@@ -10,17 +10,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1 "k8s.io/kubernetes/pkg/apis/core/v1"
 )
-
-func (k *kong) ensureService(lb *lbapi.LoadBalancer) error {
-	if err := k.ensureProxySvc(lb); err != nil {
-		return err
-	}
-
-	return k.ensureValidationWebhookSvc(lb)
-}
 
 func (k *kong) ensureProxySvc(lb *lbapi.LoadBalancer) error {
 	httpPort := lb.Spec.Proxy.HTTPPort
@@ -84,63 +75,6 @@ func (k *kong) ensureProxySvc(lb *lbapi.LoadBalancer) error {
 		newSvc.OwnerReferences = proxySvc.OwnerReferences
 		newSvc.Spec.Ports = proxySvc.Spec.Ports
 		newSvc.Spec.Selector = proxySvc.Spec.Selector
-		if _, err := k.client.CoreV1().Services(metav1.NamespaceSystem).Update(newSvc); err != nil {
-			return err
-		}
-	}
-	return err
-}
-
-func (k *kong) ensureValidationWebhookSvc(lb *lbapi.LoadBalancer) error {
-	name := "kong-validation-webhook-" + lb.Name
-	t := true
-	labels := k.selector(lb)
-	webhookSvc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: metav1.NamespaceSystem,
-			Labels:    labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         api.ControllerKind.GroupVersion().String(),
-					Kind:               api.ControllerKind.Kind,
-					Name:               lb.Name,
-					UID:                lb.UID,
-					Controller:         &t,
-					BlockOwnerDeletion: &t,
-				},
-			},
-		},
-		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{
-				{
-					Name:     "webhook",
-					Port:     443,
-					Protocol: v1.ProtocolTCP,
-					TargetPort: intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: 8080,
-					},
-				},
-			},
-			Selector: labels,
-			Type:     v1.ServiceTypeClusterIP,
-		},
-	}
-
-	svc, err := k.client.CoreV1().Services(metav1.NamespaceSystem).Get(name, metav1.GetOptions{})
-	if err != nil && errors.IsNotFound(err) {
-		if _, err := k.client.CoreV1().Services(metav1.NamespaceSystem).Create(webhookSvc); err != nil {
-			return err
-		}
-	}
-
-	if err == nil && !isEqual(svc, webhookSvc) {
-		newSvc := svc.DeepCopy()
-		newSvc.Labels = webhookSvc.Labels
-		newSvc.OwnerReferences = webhookSvc.OwnerReferences
-		newSvc.Spec.Ports = webhookSvc.Spec.Ports
-		newSvc.Spec.Selector = webhookSvc.Spec.Selector
 		if _, err := k.client.CoreV1().Services(metav1.NamespaceSystem).Update(newSvc); err != nil {
 			return err
 		}

@@ -91,15 +91,8 @@ func (k *kong) generateDeployment(lb *lbapi.LoadBalancer) *appsv1.Deployment {
 	}
 
 	ingressContainer := v1.Container{
-		Name:  "ingress-controller",
-		Image: k.ingressImage,
-		Ports: []v1.ContainerPort{
-			{
-				ContainerPort: 8080,
-				Name:          "webhook",
-				Protocol:      v1.ProtocolTCP,
-			},
-		},
+		Name:            "ingress-controller",
+		Image:           k.ingressImage,
 		Env:             makeIngressEnvs(lb.Name),
 		Resources:       lb.Spec.Proxy.Resources,
 		LivenessProbe:   makeProbe("/healthz", 10254),
